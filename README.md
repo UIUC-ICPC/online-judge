@@ -8,7 +8,7 @@
     - maybe think about self hosting problems table 
 - Judge worker
     - Multithreading to handle simultaneous executions
-    - Sandbox execution of submitted code
+    - Sandbox execution of submitted code (isolate)
 - Control server
     - Queue for submissions
     - Load balancing between judge workers
