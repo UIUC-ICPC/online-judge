@@ -20,6 +20,7 @@
       imports = [
         ./nix/devshell.nix
         ./nix/git-hooks.nix
+        ./nix/languages
         ./nix/treefmt.nix
       ];
       systems = [
