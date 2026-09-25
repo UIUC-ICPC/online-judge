@@ -28,3 +28,15 @@ rustc-ice-*.txt
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# --- Nix ---
+# Ignore build outputs from performing a nix-build or `nix build` command
+result
+result-*
+
+# Ignore automatically generated direnv output
+.direnv/
+
+# Generated .pre-commit-config.yaml from git-hooks.nix
+.pre-commit-config.yaml
+
