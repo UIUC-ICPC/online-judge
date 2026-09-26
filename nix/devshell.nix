@@ -22,6 +22,7 @@
             clippy
             rust-analyzer
             rustc
+            rustfmt
           ]
           ++ config.pre-commit.settings.enabledPackages
           ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
