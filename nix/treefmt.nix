@@ -9,6 +9,7 @@
       programs = {
         nixfmt.enable = true;
         rustfmt.enable = true;
+        clang-format.enable = true;
       };
     };
   };

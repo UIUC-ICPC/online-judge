@@ -24,6 +24,7 @@
   testScript = lib.concatLines (
     map builtins.readFile [
       ./common.py
+      ./cpp.py
     ]
   );
 }
