@@ -25,6 +25,7 @@
     map builtins.readFile [
       ./common.py
       ./cpp.py
+      ./python.py
     ]
   );
 }
