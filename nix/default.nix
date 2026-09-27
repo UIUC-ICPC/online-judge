@@ -5,6 +5,7 @@
     ./languages
     ./modules
     ./pkgs
+    ./tests
     ./treefmt.nix
   ];
 }
