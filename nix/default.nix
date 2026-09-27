@@ -7,5 +7,6 @@
     ./pkgs
     ./tests
     ./treefmt.nix
+    ./vm
   ];
 }
