@@ -50,6 +50,7 @@ in
   virtualisation = {
     memorySize = 4096;
     cores = 4;
+    sharedDirectories.shared.cache = "never";
   };
 
   programs.fish.enable = true;
