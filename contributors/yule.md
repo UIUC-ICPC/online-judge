@@ -1,4 +1,4 @@
-Yule Park
+Yule Park (coralazuz)
 
 I'm a freshman in Math and CS and I'm excited to work on backend, specifically the database
 
