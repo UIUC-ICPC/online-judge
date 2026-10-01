@@ -20,3 +20,49 @@ Do not push directly to the `main` branch. All changes must go through a code re
    * Note on Commits: Make your commit messages descriptive of the changes made. A vague message like `add changes` is not sufficient.
 4. Open a Pull Request: Create a PR to merge your branch into `main`. Briefly summarize the exact changes you made inside the PR description.
 5. Approval: All PRs must be reviewed and approved by a maintainer before they can be merged.
+
+## Development environment
+
+This repository uses [Nix](https://nixos.org) to provide the development environment and project dependencies.
+For easy installation we recommend the [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer). 
+The [offical](https://nix.dev/install-nix) nix installer also works, but [flakes](https://nix.dev/concepts/flakes.html) will need to be manually enabled.
+
+Enter the development shell with:
+
+```sh
+nix develop
+```
+
+Most development tools, including Rust tooling, are available from this shell.
+
+### direnv
+
+For automatic development shell activation, we recommend using
+[direnv](https://direnv.net/) together with
+[nix-direnv](https://github.com/nix-community/nix-direnv).
+
+After installing both, enable the repository's environment with:
+
+```sh
+direnv allow
+```
+
+direnv reads from `.envrc`, which uses the project's Nix flake, so the development environment will be loaded automatically whenever you enter the repository.
+
+Using direnv is optional, `nix develop` provides the same development environment manually.
+
+## Checks
+
+Run the repository checks with:
+
+```sh
+nix flake check
+```
+
+These checks are the same that are ran by CI, so if this passes locally it will pass on CI.
+
+## Project-specific development
+
+Some components have additional development and testing requirements.
+
+- [Judge worker](docs/judge-worker.md)
