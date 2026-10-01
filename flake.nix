@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    crane.url = "github:ipetkov/crane";
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -21,6 +22,7 @@
         ./nix/devshell.nix
         ./nix/git-hooks.nix
         ./nix/languages
+        ./nix/pkgs
         ./nix/treefmt.nix
       ];
       systems = [
