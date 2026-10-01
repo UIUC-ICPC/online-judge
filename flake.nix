@@ -18,17 +18,10 @@
   outputs =
     inputs@{ self, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        ./nix/devshell.nix
-        ./nix/git-hooks.nix
-        ./nix/languages
-        ./nix/pkgs
-        ./nix/treefmt.nix
-      ];
+      imports = [ ./nix ];
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
     };
