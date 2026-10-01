@@ -3,6 +3,7 @@
 add your name and discord handle here!
 
 - Canchen Li (leaves333)
+- Enya Chen (20oz)
 
 
 ## github instructions:
