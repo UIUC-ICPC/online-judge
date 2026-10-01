@@ -1,11 +1,6 @@
 {
   perSystem =
-    {
-      config,
-      lib,
-      pkgs,
-      ...
-    }:
+    { config, pkgs, ... }:
     {
       devShells.default = pkgs.mkShell {
         shellHook = ''
@@ -24,10 +19,7 @@
             rustc
             rustfmt
           ]
-          ++ config.pre-commit.settings.enabledPackages
-          ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-            isolate
-          ];
+          ++ config.pre-commit.settings.enabledPackages;
       };
     };
 }
