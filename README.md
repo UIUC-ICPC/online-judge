@@ -21,3 +21,6 @@ hello world
 - Backend
     - Pull problems from polygon 
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.
