@@ -33,4 +33,9 @@ git commit -m "your commit message here!"
 git push
 ```
 
-create a pr. (detail pr process)
+create a pull request (pr)
+after you push to main, head to the github website (there is no "git pull request" command)
+on github, within your new branch with your changes, there will be an option to "Contribute" and make a Pull Request
+- on your pull request you can add details (what your pull request is about, etc)
+- before it can be pushed to main, it will need an approval from someone else
+- after approval, it can then be merged into our main branch
