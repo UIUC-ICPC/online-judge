@@ -40,3 +40,5 @@ result-*
 # Generated .pre-commit-config.yaml from git-hooks.nix
 .pre-commit-config.yaml
 
+# images from nix vms
+*.qcow2
