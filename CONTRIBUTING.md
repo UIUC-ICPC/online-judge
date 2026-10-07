@@ -25,7 +25,7 @@ Do not push directly to the `main` branch. All changes must go through a code re
 
 This repository uses [Nix](https://nixos.org) to provide the development environment and project dependencies.
 For easy installation we recommend the [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer). 
-The [offical](https://nix.dev/install-nix) nix installer also works, but [flakes](https://nix.dev/concepts/flakes.html) will need to be manually enabled.
+The [offical](https://nix.dev/install-nix) nix installer also works, but [flakes](https://nix.dev/concepts/flakes.html) will need to be [manually enabled](https://wiki.nixos.org/wiki/Flakes#Nix_standalone).
 
 Enter the development shell with:
 
