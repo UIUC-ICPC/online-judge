@@ -76,7 +76,7 @@ The judge worker has a NixOS integration test that boots a VM and tests the work
 Run it with:
 
 ```sh
-nix build -L .#checks.x86_64-linux.judge-worker
+nix build -L .#judge-worker-test
 ```
 
 The test uses fixtures from:
