@@ -8,14 +8,9 @@ Because `isolate` depends on Linux-specific functionality such as cgroups and na
 
 ### macOS Linux builder
 
-1. Install [nix-darwin](https://github.com/nix-darwin/nix-darwin) using flakes.
-2. Install or update Rosetta:
+1. Install [nix-darwin](https://github.com/nix-darwin/nix-darwin) using flakes (nixpkgs unstable).
 
-   ```sh
-   softwareupdate --install-rosetta --agree-to-license
-   ```
-
-3. Add the following to your nix-darwin configuration:
+2. Add the following to your nix-darwin configuration:
 
    ```nix
    nix.linux-builder = {
@@ -35,7 +30,7 @@ Because `isolate` depends on Linux-specific functionality such as cgroups and na
    };
    ```
 
-4. Rebuild your nix-darwin configuration:
+3. Rebuild your nix-darwin configuration:
 
    ```sh
    sudo darwin-rebuild switch
