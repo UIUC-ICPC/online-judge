@@ -8,26 +8,44 @@ Because `isolate` depends on Linux-specific functionality such as cgroups and na
 
 ### macOS Linux builder
 
-1. Install [nix-darwin](https://github.com/nix-darwin/nix-darwin) using flakes.
-2. Install or update Rosetta:
+1. Install [nix-darwin](https://github.com/nix-darwin/nix-darwin) using flakes (nixpkgs unstable).
 
-   ```sh
-   softwareupdate --install-rosetta --agree-to-license
+2. Bootstrap a standard Linux builder first:
+
+   ```nix
+   nix.linux-builder = {
+     enable = true;
+     systems = [ "aarch64-linux" ];
+   };
    ```
 
-3. Add the following to your nix-darwin configuration:
+3. Rebuild your nix-darwin configuration:
+
+   ```sh
+   sudo darwin-rebuild switch
+   ```
+
+4. Verify that the Linux builder works:
+
+   ```sh
+    nix build --system aarch64-linux --no-substitute --rebuild nixpkgs#hello 
+   ```
+
+5. Once the bootstrap builder is working, switch to the VZ Linux builder with nested virtualization:
 
    ```nix
    nix.linux-builder = {
      enable = true;
      package = pkgs.darwin.linux-builder-vz;
      systems = [ "aarch64-linux" ];
+
      supportedFeatures = [
        "kvm"
        "benchmark"
        "big-parallel"
        "nixos-test"
      ];
+
      config.virtualisation.vz = {
        rosetta.enable = false;
        nestedVirtualization = true;
@@ -35,11 +53,25 @@ Because `isolate` depends on Linux-specific functionality such as cgroups and na
    };
    ```
 
-4. Rebuild your nix-darwin configuration:
+   > `nestedVirtualization` requires macOS 15 or newer and an M3 or newer Apple silicon Mac.
+
+6. Rebuild again:
 
    ```sh
    sudo darwin-rebuild switch
    ```
+
+
+7. Verify that the VZ builder has nested virtualization available:
+
+   ```sh
+   ssh -p 31022 \
+     -i /etc/nix/builder_ed25519 \
+     builder@127.0.0.1 \
+     'ls -l /dev/kvm'
+   ```
+
+   `/dev/kvm` should exist inside the Linux builder VM.
 
 ### KVM permissions
 
