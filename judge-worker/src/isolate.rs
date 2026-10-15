@@ -1,3 +1,5 @@
+use tempfile::{self, TempDir, tempdir};
+
 use crate::language_config::{Command, LanguageConfig};
 use std::{
     fs::{self, read_to_string},
@@ -9,6 +11,7 @@ use std::{
 pub struct IsolateBox {
     box_id: u32,
     box_dir: PathBuf,
+    temp_dir: TempDir,
 }
 
 // https://www.ucw.cz/isolate/isolate.1.html#_limits
@@ -87,8 +90,18 @@ impl IsolateBox {
 
         let root = String::from_utf8(output.stdout)?;
         let box_dir = PathBuf::from(root.trim()).join("box");
+        let temp_dir = tempdir()?;
+        println!("temp dir is {}", temp_dir.path().display());
 
-        Ok(Self { box_id, box_dir })
+        Ok(Self {
+            box_id,
+            box_dir,
+            temp_dir,
+        })
+    }
+
+    fn metadata_path(&self) -> PathBuf {
+        self.temp_dir.path().join("meta")
     }
 
     fn isolate(&self) -> ProcessCommand {
@@ -139,10 +152,6 @@ impl IsolateBox {
                 command.arg("--processes");
             }
         }
-    }
-
-    fn metadata_path(&self) -> PathBuf {
-        PathBuf::from(&format!("{}/metadata", self.box_dir.display()))
     }
 
     fn read_metadata(&self) -> Result<Metadata, Box<dyn std::error::Error>> {
@@ -251,7 +260,7 @@ impl IsolateBox {
         &self,
         language: &LanguageConfig,
         source: &Path,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<Metadata, Box<dyn std::error::Error>> {
         let source_name = self.copy_to_sandbox(source)?;
         let output_name = "main";
         let compile_limits = Limits {
@@ -294,7 +303,8 @@ impl IsolateBox {
             &runtime_limits,
         )?;
 
-        // TODO: Use isolate metadata file to distinguish TLE, RE, signals, OOM, etc.
+        // TODO: rewrite tests to check returned metadata struct
+        // instead of checking if judge-worker exited successfully
         if !status.success() {
             return Err(format!("execution failed: {status}").into());
         }
@@ -302,7 +312,7 @@ impl IsolateBox {
         let metadata = self.read_metadata()?;
         println!("metadata results from running submission:\n{metadata:?}");
 
-        Ok(())
+        Ok(metadata)
     }
 
     fn cleanup(&mut self) {
