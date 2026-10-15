@@ -1,3 +1,5 @@
+use tempfile::{self, tempdir};
+
 use crate::language_config::{Command, LanguageConfig};
 use std::{
     fs::{self, read_to_string},
@@ -66,6 +68,54 @@ pub struct Metadata {
     status: Option<MetadataStatus>,
     time: Option<f64>,
     time_wall: Option<f64>,
+}
+
+fn read_metadata(path: &Path) -> Result<Metadata, Box<dyn std::error::Error>> {
+    let contents = read_to_string(path)?;
+
+    let mut metadata = Metadata::default();
+    for line in contents.lines() {
+        let (key, value) = line
+            .split_once(':')
+            .ok_or("bad metadata file contents: failed to get key value pair")?;
+
+        match key {
+            "cg-mem" => metadata.cg_mem = Some(value.parse()?),
+            "cg-oom-killed" => metadata.cg_oom_killed = true,
+            "csw-forced" => metadata.csw_forced = Some(value.parse()?),
+            "csw-voluntary" => metadata.csw_voluntary = Some(value.parse()?),
+            "exitcode" => metadata.exitcode = Some(value.parse()?),
+            "exitsig" => metadata.exitsig = Some(value.parse()?),
+            "killed" => metadata.killed = true,
+            "max-rss" => metadata.max_rss = Some(value.parse()?),
+            "message" => metadata.message = Some(value.to_owned()),
+            "status" => {
+                metadata.status = Some(match value {
+                    "RE" => MetadataStatus::RuntimeError,
+                    "SG" => MetadataStatus::Signal,
+                    "TO" => MetadataStatus::Timeout,
+                    "XX" => MetadataStatus::InternalError,
+                    _ => {
+                        return Err(
+                            format!("bad metadata file contents: unknown status {value}").into(),
+                        );
+                    }
+                });
+            }
+            "time" => metadata.time = Some(value.parse()?),
+            "time-wall" => metadata.time_wall = Some(value.parse()?),
+            _ => {
+                return Err(format!("bad metadata file contents: unknown key {key}").into());
+            }
+        }
+    }
+
+    Ok(metadata)
+}
+
+pub struct IsolateResult {
+    status: ExitStatus,
+    meta: Metadata,
 }
 
 impl IsolateBox {
@@ -141,54 +191,6 @@ impl IsolateBox {
         }
     }
 
-    fn metadata_path(&self) -> PathBuf {
-        PathBuf::from(&format!("{}/metadata", self.box_dir.display()))
-    }
-
-    fn read_metadata(&self) -> Result<Metadata, Box<dyn std::error::Error>> {
-        let contents = read_to_string(self.metadata_path())?;
-
-        let mut metadata = Metadata::default();
-        for line in contents.lines() {
-            let (key, value) = line
-                .split_once(':')
-                .ok_or("bad metadata file contents: failed to get key value pair")?;
-
-            match key {
-                "cg-mem" => metadata.cg_mem = Some(value.parse()?),
-                "cg-oom-killed" => metadata.cg_oom_killed = true,
-                "csw-forced" => metadata.csw_forced = Some(value.parse()?),
-                "csw-voluntary" => metadata.csw_voluntary = Some(value.parse()?),
-                "exitcode" => metadata.exitcode = Some(value.parse()?),
-                "exitsig" => metadata.exitsig = Some(value.parse()?),
-                "killed" => metadata.killed = true,
-                "max-rss" => metadata.max_rss = Some(value.parse()?),
-                "message" => metadata.message = Some(value.to_owned()),
-                "status" => {
-                    metadata.status = Some(match value {
-                        "RE" => MetadataStatus::RuntimeError,
-                        "SG" => MetadataStatus::Signal,
-                        "TO" => MetadataStatus::Timeout,
-                        "XX" => MetadataStatus::InternalError,
-                        _ => {
-                            return Err(format!(
-                                "bad metadata file contents: unknown status {value}"
-                            )
-                            .into());
-                        }
-                    });
-                }
-                "time" => metadata.time = Some(value.parse()?),
-                "time-wall" => metadata.time_wall = Some(value.parse()?),
-                _ => {
-                    return Err(format!("bad metadata file contents: unknown key {key}").into());
-                }
-            }
-        }
-
-        Ok(metadata)
-    }
-
     fn run(
         &self,
         command: &Command,
@@ -197,7 +199,7 @@ impl IsolateBox {
         output: &str,
         writable: bool,
         limits: &Limits,
-    ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
+    ) -> Result<IsolateResult, Box<dyn std::error::Error>> {
         let substitutions = [("{source}", source), ("{output}", output)];
         let box_mount = if writable {
             format!("--dir=/box={}:rw", self.box_dir.display())
@@ -209,8 +211,11 @@ impl IsolateBox {
 
         let program = Self::expand_arg(&command.program, &substitutions);
 
-        let mut isolate = self.isolate();
+        let temp_dir = tempdir()?;
+        let metadata_path = temp_dir.path().join("meta");
+        println!("temp dir is {}", temp_dir.path().display());
 
+        let mut isolate = self.isolate();
         isolate
             .arg("--no-default-dirs")
             .arg(box_mount)
@@ -219,7 +224,7 @@ impl IsolateBox {
             .arg(usr_mount)
             .arg("--chdir=/box")
             .arg("--cg")
-            .arg(format!("--meta={}", self.metadata_path().display()));
+            .arg(format!("--meta={}", metadata_path.display()));
 
         Self::apply_limits(&mut isolate, limits);
         isolate.arg("--run").arg("--").arg(program);
@@ -231,7 +236,10 @@ impl IsolateBox {
                 .map(|arg| Self::expand_arg(arg, &substitutions)),
         );
 
-        Ok(isolate.status()?)
+        Ok(IsolateResult {
+            status: isolate.status()?,
+            meta: read_metadata(&metadata_path)?,
+        })
     }
 
     fn copy_to_sandbox(&self, source: &Path) -> Result<String, Box<dyn std::error::Error>> {
@@ -251,7 +259,7 @@ impl IsolateBox {
         &self,
         language: &LanguageConfig,
         source: &Path,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<Metadata, Box<dyn std::error::Error>> {
         let source_name = self.copy_to_sandbox(source)?;
         let output_name = "main";
         let compile_limits = Limits {
@@ -263,7 +271,7 @@ impl IsolateBox {
         };
 
         for compile_command in &language.compile {
-            let status = self.run(
+            let result = self.run(
                 compile_command,
                 language,
                 &source_name,
@@ -272,8 +280,8 @@ impl IsolateBox {
                 &compile_limits,
             )?;
 
-            if !status.success() {
-                return Err(format!("compilation failed: {status}").into());
+            if !result.status.success() {
+                return Err(format!("compilation failed: {}", result.status).into());
             }
         }
 
@@ -285,7 +293,7 @@ impl IsolateBox {
             ..Default::default()
         };
 
-        let status = self.run(
+        let result = self.run(
             &language.run,
             language,
             &source_name,
@@ -294,15 +302,16 @@ impl IsolateBox {
             &runtime_limits,
         )?;
 
-        // TODO: Use isolate metadata file to distinguish TLE, RE, signals, OOM, etc.
-        if !status.success() {
-            return Err(format!("execution failed: {status}").into());
+        // TODO: rewrite nix vm tests to check returned metadata struct
+        // instead of checking if judge-worker exited successfully
+        if !result.status.success() {
+            return Err(format!("execution failed: {}", result.status).into());
         }
 
-        let metadata = self.read_metadata()?;
+        let metadata = result.meta;
         println!("metadata results from running submission:\n{metadata:?}");
 
-        Ok(())
+        Ok(metadata)
     }
 
     fn cleanup(&mut self) {
