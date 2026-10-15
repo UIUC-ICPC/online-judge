@@ -8,7 +8,7 @@ use std::{
 
 pub struct IsolateBox {
     box_id: u32,
-    box_dir: PathBuf,
+    root_dir: PathBuf,
 }
 
 // https://www.ucw.cz/isolate/isolate.1.html#_limits
@@ -56,10 +56,12 @@ impl IsolateBox {
             .into());
         }
 
-        let root = String::from_utf8(output.stdout)?;
-        let box_dir = PathBuf::from(root.trim()).join("box");
+        let root_dir = PathBuf::from(String::from_utf8(output.stdout)?.trim());
+        Ok(Self { box_id, root_dir })
+    }
 
-        Ok(Self { box_id, box_dir })
+    fn box_dir(&self) -> PathBuf {
+        self.root_dir.join("box")
     }
 
     fn isolate(&self) -> ProcessCommand {
@@ -123,9 +125,9 @@ impl IsolateBox {
     ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
         let substitutions = [("{source}", source), ("{output}", output)];
         let box_mount = if writable {
-            format!("--dir=/box={}:rw", self.box_dir.display())
+            format!("--dir=/box={}:rw", self.box_dir().display())
         } else {
-            format!("--dir=/box={}", self.box_dir.display())
+            format!("--dir=/box={}", self.box_dir().display())
         };
 
         let usr_mount = format!("--dir=/usr={}", language.environment.display());
@@ -161,7 +163,7 @@ impl IsolateBox {
             .and_then(|name| name.to_str())
             .ok_or("invalid source filename")?;
 
-        let sandbox_source = self.box_dir.join(source_name);
+        let sandbox_source = self.box_dir().join(source_name);
 
         fs::copy(source, sandbox_source)?;
 
