@@ -48,6 +48,7 @@ in
   };
 
   virtualisation = {
+    diskSize = 16384;
     memorySize = 4096;
     cores = 4;
     sharedDirectories.shared.cache = "never";
