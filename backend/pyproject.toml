@@ -1,12 +1,10 @@
 [project]
-name = "djangotutorial"
+name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "ICPC online judge backend"
 readme = "README.md"
-authors = [
-    { name = "Sophia Chen", email = "nettlepluff@gmail.com" }
-]
 requires-python = ">=3.14"
+
 dependencies = [
     "django>=6.1.2",
     "django-allauth[socialaccount]>=65.19.7",
@@ -16,8 +14,4 @@ dependencies = [
 ]
 
 [project.scripts]
-djangotutorial = "djangotutorial:main"
-
-[build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
-build-backend = "uv_build"
+backend = "backend:main"

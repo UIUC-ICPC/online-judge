@@ -4,4 +4,5 @@ from . import views
 # list of endpoints where all our apis will be described on
 urlpatterns = [
   path("", views.index, name="index"),
+  path("example", views.example, name="example"),
 ]
