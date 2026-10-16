@@ -12,6 +12,27 @@ wheels = [
 ]
 
 [[package]]
+name = "backend"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "django" },
+    { name = "django-allauth", extra = ["socialaccount"] },
+    { name = "psycopg" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=6.1.2" },
+    { name = "django-allauth", extras = ["socialaccount"], specifier = ">=65.19.7" },
+    { name = "psycopg", specifier = ">=3.3.6" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
+    { name = "requests", specifier = ">=2.34.2" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.7.22"
 source = { registry = "https://pypi.org/simple" }
@@ -268,27 +289,6 @@ socialaccount = [
     { name = "oauthlib" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "requests" },
-]
-
-[[package]]
-name = "djangotutorial"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "django" },
-    { name = "django-allauth", extra = ["socialaccount"] },
-    { name = "psycopg" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "django", specifier = ">=6.1.2" },
-    { name = "django-allauth", extras = ["socialaccount"], specifier = ">=65.19.7" },
-    { name = "psycopg", specifier = ">=3.3.6" },
-    { name = "python-dotenv", specifier = ">=1.2.4" },
-    { name = "requests", specifier = ">=2.34.2" },
 ]
 
 [[package]]
