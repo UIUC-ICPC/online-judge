@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+# TODO sync these changes w any new changes 
 class Contest(models.Model):
 	private = models.BooleanField(default=False)
 	password = models.CharField(

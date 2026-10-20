@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Collected static files
+staticfiles/
+
 # Local credentials
 .env
 .my_pgpass

@@ -1,0 +1,19 @@
+{% extends "layouts/app.html" %}
+
+{% block head_title %}Profile{% endblock %}
+
+{% block content %}
+    <header><h1>{{ profile_user.username }}</h1><p>Your profile and account settings.</p></header>
+    <dl>
+        <dt>Email</dt><dd>{{ profile_user.email }}</dd>
+    </dl>
+    <nav>
+        <a href="{% url 'account_email' %}">Manage email</a>
+        {% if profile_user.has_usable_password %}
+            <a href="{% url 'account_change_password' %}">Change password</a>
+        {% else %}
+            <a href="{% url 'account_set_password' %}">Set a password</a>
+        {% endif %}
+        <a href="{% url 'socialaccount_connections' %}">Connected accounts</a>
+    </nav>
+{% endblock %}
