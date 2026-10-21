@@ -297,10 +297,13 @@ impl IsolateBox {
     pub fn run_submission(
         &self,
         language: &LanguageConfig,
-        source: &Path,
+        source: &str,
         problem: &Path,
     ) -> Result<Metadata, Box<dyn std::error::Error>> {
-        let source_name = self.copy_to_sandbox(source)?;
+        let source_name = format!("source.{}", language.file_extension);
+        let source_path = self.box_dir.join(&source_name);
+        fs::write(&source_path, source)?;
+
         let output_name = "main";
         let compile_limits = Limits {
             time: Some(Duration::from_secs(10)),
