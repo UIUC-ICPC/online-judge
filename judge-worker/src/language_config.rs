@@ -5,17 +5,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Command {
     pub program: String,
     pub args: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct LanguageConfig {
     pub environment: PathBuf,
     pub compile: Vec<Command>,
     pub run: Command,
+    pub extension: String
 }
 
 pub type LanguageConfigs = HashMap<String, LanguageConfig>;
