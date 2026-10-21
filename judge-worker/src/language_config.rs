@@ -12,11 +12,12 @@ pub struct Command {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct LanguageConfig {
     pub environment: PathBuf,
     pub compile: Vec<Command>,
     pub run: Command,
-    pub extension: String
+    pub file_extension: String,
 }
 
 pub type LanguageConfigs = HashMap<String, LanguageConfig>;

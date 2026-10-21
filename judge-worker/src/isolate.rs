@@ -260,7 +260,7 @@ impl IsolateBox {
         language: &LanguageConfig,
         source: &str,
     ) -> Result<Metadata, Box<dyn std::error::Error>> {
-        let source_name = format!("source.{}", language.extension); 
+        let source_name = format!("source.{}", language.file_extension);
         let source_path = self.box_dir.join(&source_name);
         fs::write(&source_path, source)?;
 
