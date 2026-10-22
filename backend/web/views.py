@@ -14,6 +14,11 @@ def problem_submissions(request, problem_id):
     return render(request, "pages/problem_submissions.html", {"problem_id": problem_id, "submissions": submissions})
 
 @require_safe
+def all_recent_submissions(request):
+    submissions = Submission.objects.order_by("-submitted_at")[:50]
+    return render(request, "pages/problem_submissions.html", {"submissions": submissions})
+
+@require_safe
 def contests(request):
     return render(request, "pages/contests.html")
 
