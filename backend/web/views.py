@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_safe
-from data.models import Submission
+from data.models import Contest, Submission
 
 
 @require_safe
@@ -26,18 +26,21 @@ def number_of_submissions_from_team(request):
 
 @require_safe
 def contests(request):
-    return render(request, "pages/contests.html")
+    contest_list = Contest.objects.all().order_by("-start_time")
+    return render(request, "pages/contests.html", {"contest_list": contest_list})
 
+@require_safe
+def contest_detail(request, contest_id):
+    contest = get_object_or_404(Contest, id = contest_id)
+    return render(request, "pages/contest_detail.html", {"contest": contest})
 
 @require_safe
 def problems(request):
     return render(request, "pages/problems.html")
 
-
 @require_safe
 def ratings(request):
     return render(request, "pages/ratings.html")
-
 
 @login_required
 @require_safe
