@@ -14,7 +14,6 @@ Because `isolate` depends on Linux-specific functionality such as cgroups and na
    ```sh
    softwareupdate --install-rosetta --agree-to-license
    ```
-
 3. Add the following to your nix-darwin configuration:
 
    ```nix
@@ -34,14 +33,11 @@ Because `isolate` depends on Linux-specific functionality such as cgroups and na
      };
    };
    ```
-
 4. Rebuild your nix-darwin configuration:
 
    ```sh
-   sudo darwin-rebuild switch
+   sudo darwin-rebuild switchKVM permissions
    ```
-
-### KVM permissions
 
 The development VM uses KVM acceleration when available.
 
