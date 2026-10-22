@@ -5,24 +5,19 @@ use axum::{
     Json, 
     Router, 
     http::{StatusCode}, 
-    routing::post,
+    routing::{post,get},
     extract::State,
 };
 use clap::Parser;
 use isolate::IsolateBox;
 use std::{path::PathBuf};
+use axum::extract::rejection::JsonRejection;
 
 
 #[derive(Parser)]
 struct Args {
     #[arg(short, long)]
     config: PathBuf,
-
-    #[arg(short, long)]
-    language: String,
-
-    #[arg(short, long)]
-    source: PathBuf,
 }
 
 #[derive(serde::Deserialize)]
@@ -41,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", post(submission_handler))
         .with_state(configs.clone());
 
-    let listener = tokio::net::TcpListener::bind("route").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
     Ok(())
 }
@@ -59,7 +54,7 @@ async fn submission_handler(
 
     let sandbox = IsolateBox::new(0, None)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
+ 
     sandbox.run_submission(language, &payload.source)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(format!("Data would go here"))
