@@ -11,4 +11,5 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"), 
     path("problems/<int:problem_id>/submissions/", views.problem_submissions, name="problem_submissions"),
     path("problems/submissions/", views.all_recent_submissions, name="all_recent_submissions"),
+    path("submissions/count/", views.number_of_submissions_from_team, name="number_of_submissions_from_team"),
 ]

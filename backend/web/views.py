@@ -19,6 +19,12 @@ def all_recent_submissions(request):
     return render(request, "pages/problem_submissions.html", {"submissions": submissions})
 
 @require_safe
+def number_of_submissions_from_team(request):
+    team_id = request.GET.get("team_id")
+    submissions_count = Submission.objects.filter(team_id=team_id).count()
+    return render(request, "pages/number_of_submissions_from_team.html", {"team_id": team_id, "submissions_count": submissions_count})
+
+@require_safe
 def contests(request):
     return render(request, "pages/contests.html")
 
