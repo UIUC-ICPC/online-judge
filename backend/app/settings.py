@@ -127,15 +127,20 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Database configured to use 
 DATABASES = {
-    'default': { 
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ["PGDATABASE"], 
-        'USER': os.environ["PGUSER"], 
-        'PASSWORD': os.environ["PGPASSWORD"], 
-        'HOST': os.environ["PGHOST"], 
-        'PORT': os.environ["PGPORT"],
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.environ["MYSQL_DATABASE"],
+        "USER": os.environ["MYSQL_USER"],
+        "PASSWORD": os.environ["MYSQL_PASSWORD"],
+        "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
+        "PORT": os.getenv("MYSQL_PORT", "3306"),
+        "OPTIONS": {
+            "charset": "utf8mb4",
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     }
 }
+
 
 
 # Internationalization
