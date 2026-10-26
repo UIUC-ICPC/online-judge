@@ -1,8 +1,7 @@
-mod isolate;
-mod language_config;
+use judge_worker::isolate::IsolateBox;
+use judge_worker::language_config;
 
 use clap::Parser;
-use isolate::IsolateBox;
 use std::path::PathBuf;
 
 #[derive(Parser)]
