@@ -90,12 +90,16 @@ impl SubmissionResult {
         verdict: Verdict,
         message: Option<String>,
         metadata: Metadata,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<Self> {
         Ok(Self {
             tests_passed,
             verdict,
-            time: metadata.time_wall.ok_or("metadata is missing time_wall")?,
-            memory: metadata.cg_mem.ok_or("metadata is missing cg_mem")?,
+            time: metadata
+                .time_wall
+                .ok_or_else(|| anyhow::anyhow!("metadata is missing time_wall"))?,
+            memory: metadata
+                .cg_mem
+                .ok_or_else(|| anyhow::anyhow!("metadata is missing cg_mem"))?,
             message,
         })
     }
@@ -114,14 +118,14 @@ pub enum Verdict {
     // IdlenessLimitExceeded,
 }
 
-fn read_metadata(path: &Path) -> Result<Metadata, Box<dyn std::error::Error>> {
+fn read_metadata(path: &Path) -> anyhow::Result<Metadata> {
     let contents = read_to_string(path)?;
 
     let mut metadata = Metadata::default();
     for line in contents.lines() {
-        let (key, value) = line
-            .split_once(':')
-            .ok_or("bad metadata file contents: failed to get key value pair")?;
+        let (key, value) = line.split_once(':').ok_or_else(|| {
+            anyhow::anyhow!("bad metadata file contents: failed to get key value pair")
+        })?;
 
         match key {
             "cg-mem" => metadata.cg_mem = Some(value.parse()?),
@@ -140,16 +144,16 @@ fn read_metadata(path: &Path) -> Result<Metadata, Box<dyn std::error::Error>> {
                     "TO" => MetadataStatus::Timeout,
                     "XX" => MetadataStatus::InternalError,
                     _ => {
-                        return Err(
-                            format!("bad metadata file contents: unknown status {value}").into(),
-                        );
+                        anyhow::bail!(format!(
+                            "bad metadata file contents: unknown status {value}"
+                        ));
                     }
                 });
             }
             "time" => metadata.time = Some(value.parse()?),
             "time-wall" => metadata.time_wall = Some(value.parse()?),
             _ => {
-                return Err(format!("bad metadata file contents: unknown key {key}").into());
+                anyhow::bail!(format!("bad metadata file contents: unknown key {key}"));
             }
         }
     }
@@ -163,7 +167,7 @@ pub struct IsolateResult {
 }
 
 impl IsolateBox {
-    pub fn new(box_id: u32, quota: Option<DiskQuota>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(box_id: u32, quota: Option<DiskQuota>) -> anyhow::Result<Self> {
         let mut isolate = ProcessCommand::new("isolate");
         isolate.arg(format!("--box-id={box_id}")).arg("--cg");
         if let Some(quota) = quota {
@@ -172,11 +176,10 @@ impl IsolateBox {
         let output = isolate.arg("--init").output()?;
 
         if !output.status.success() {
-            return Err(format!(
+            anyhow::bail!(
                 "failed to initialize isolate box: {}",
                 String::from_utf8_lossy(&output.stderr)
-            )
-            .into());
+            );
         }
 
         let root = String::from_utf8(output.stdout)?;
@@ -243,7 +246,7 @@ impl IsolateBox {
         output: &str,
         writable: bool,
         limits: &Limits,
-    ) -> Result<IsolateResult, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<IsolateResult> {
         let substitutions = [("{source}", source), ("{output}", output)];
         let box_mount = if writable {
             format!("--dir=/box={}:rw", self.box_dir.display())
@@ -286,24 +289,8 @@ impl IsolateBox {
         })
     }
 
-    fn copy_to_sandbox(&self, source: &Path) -> Result<String, Box<dyn std::error::Error>> {
-        let source_name = source
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or("invalid source filename")?;
-
-        let sandbox_source = self.box_dir.join(source_name);
-
-        fs::copy(source, sandbox_source)?;
-
-        Ok(source_name.to_owned())
-    }
-
-    fn unzip_problem_package(
-        &self,
-        problem: &Path,
-        destination: &Path,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    // TODO:
+    fn unzip_problem_package(&self, problem: &Path, destination: &Path) -> anyhow::Result<()> {
         let file = File::open(problem)?;
         let mut zip = ZipArchive::new(file)?;
         zip.extract_unwrapped_root_dir(&destination, zip::read::root_dir_common_filter)?;
@@ -318,7 +305,8 @@ impl IsolateBox {
         Ok(())
     }
 
-    fn get_problem_from_path(&self, problem: &Path) -> Result<Problem, Box<dyn std::error::Error>> {
+    // TODO:
+    fn get_problem_from_path(&self, problem: &Path) -> anyhow::Result<Problem> {
         let package_dir = self.box_dir.join("package");
         self.unzip_problem_package(problem, &package_dir)?;
 
@@ -339,10 +327,15 @@ impl IsolateBox {
         language: &LanguageConfig,
         source: &str,
         problem: &Path,
-    ) -> Result<SubmissionResult, Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<SubmissionResult> {
         let source_name = format!("source.{}", language.file_extension);
         let source_path = self.box_dir.join(&source_name);
         fs::write(&source_path, source)?;
+
+        // TODO: test
+        let problem = self.get_problem_from_path(problem)?;
+        println!("extracted problem data: \n{problem:?}");
+
         let output_name = "main";
         let compile_limits = Limits {
             time: Some(Duration::from_secs(10)),
@@ -371,9 +364,6 @@ impl IsolateBox {
                 );
             }
         }
-
-        let problem = self.get_problem_from_path(problem)?;
-        println!("extracted problem data: \n{problem:?}");
 
         let runtime_limits = Limits {
             time: Some(Duration::from_secs(1)),
