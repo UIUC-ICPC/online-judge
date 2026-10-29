@@ -3,6 +3,28 @@ from django.conf import settings
 from django.utils import timezone
 
 # TODO sync these changes w any new changes 
+
+class JudgeWorker(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    endpoint_url = models.CharField(max_length=255)
+    weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC
+    active_connections = models.PositiveIntegerField(default=0)  # Active submissions being evaluated
+    is_active = models.BooleanField(default=True)
+    last_heartbeat = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "judge_workers"
+
+    @property
+    def load_ratio(self):
+        """Calculates dynamic load ratio C_i / W_i"""
+        if self.weight == 0:
+            return float("inf")
+        return self.active_connections / self.weight
+
+    def __str__(self):
+        return f"{self.name} (Active: {self.active_connections}, Weight: {self.weight})"
+
 class Contest(models.Model):
 	private = models.BooleanField(default=False)
 	password = models.CharField(
@@ -149,7 +171,13 @@ class Judging(models.Model):
         null=True,
         blank=True,
     )
-
+    worker = models.ForeignKey(
+        JudgeWorker,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="judgings",
+    )
 
     class Meta:
         db_table = "judgings"
