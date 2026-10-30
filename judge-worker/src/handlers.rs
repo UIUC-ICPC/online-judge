@@ -63,6 +63,11 @@ pub async fn submission_handler(
     Ok(format!("Data returned here"))
 }
 
+#[axum_macros::debug_handler]
+pub async fn health_handler(State(state): State<Arc<AppState>>) -> Result<String, StatusCode> {
+    Ok(format!("Metric data will go here")) // TODO: 
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         (
