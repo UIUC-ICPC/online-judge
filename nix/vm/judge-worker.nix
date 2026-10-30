@@ -52,7 +52,17 @@ in
     memorySize = 4096;
     cores = 4;
     sharedDirectories.shared.cache = "never";
+    forwardPorts = [
+      {
+        from = "host";
+        host.address = "127.0.0.1";
+        host.port = 3000;
+        guest.port = 3000;
+      }
+    ];
   };
+
+  networking.firewall.allowedTCPPorts = [ 3000 ];
 
   programs.fish.enable = true;
   environment.systemPackages = with pkgs; [
