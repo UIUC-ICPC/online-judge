@@ -45,3 +45,5 @@ result-*
 
 # --- VM ---
 **.qcow2
+
+.env
