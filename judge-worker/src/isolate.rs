@@ -1,9 +1,12 @@
+use azure_core::Bytes;
+use serde::Serialize;
+use std::io::Cursor;
 use tempfile::{self, tempdir};
 use zip::ZipArchive;
 
 use crate::{
     language_config::{Command, LanguageConfig},
-    problems::{Problem, testcases_from_dir},
+    problems::{self, Problem, testcases_from_dir},
 };
 use std::{
     fs::{self, File, read_to_string},
@@ -164,6 +167,8 @@ fn read_metadata(path: &Path) -> anyhow::Result<Metadata> {
 pub struct IsolateResult {
     status: ExitStatus,
     meta: Metadata,
+    output_path: PathBuf,         // TODO:
+    _temp_dir: tempfile::TempDir, // TODO:
 }
 
 impl IsolateBox {
@@ -243,6 +248,7 @@ impl IsolateBox {
         command: &Command,
         language: &LanguageConfig,
         source: &str,
+        input: Option<&PathBuf>,
         output: &str,
         writable: bool,
         limits: &Limits,
@@ -260,6 +266,7 @@ impl IsolateBox {
 
         let temp_dir = tempdir()?;
         let metadata_path = temp_dir.path().join("meta");
+        let output_path = temp_dir.path().join("output");
         println!("temp dir is {}", temp_dir.path().display());
 
         let mut isolate = self.isolate();
@@ -272,6 +279,11 @@ impl IsolateBox {
             .arg("--chdir=/box")
             .arg("--cg")
             .arg(format!("--meta={}", metadata_path.display()));
+
+        if let Some(input) = input {
+            isolate.stdin(File::open(&input)?);
+        }
+        isolate.stdout(File::create(&output_path)?);
 
         Self::apply_limits(&mut isolate, limits);
         isolate.arg("--run").arg("--").arg(program);
@@ -286,13 +298,17 @@ impl IsolateBox {
         Ok(IsolateResult {
             status: isolate.status()?,
             meta: read_metadata(&metadata_path)?,
+            output_path,
+            _temp_dir: temp_dir,
         })
     }
 
-    // TODO:
-    fn unzip_problem_package(&self, problem: &Path, destination: &Path) -> anyhow::Result<()> {
-        let file = File::open(problem)?;
-        let mut zip = ZipArchive::new(file)?;
+    fn unzip_problem_package(
+        &self,
+        problem_data: &Bytes,
+        destination: &Path,
+    ) -> anyhow::Result<()> {
+        let mut zip = ZipArchive::new(Cursor::new(problem_data))?;
         zip.extract_unwrapped_root_dir(&destination, zip::read::root_dir_common_filter)?;
 
         let files = destination.read_dir()?;
@@ -301,14 +317,14 @@ impl IsolateBox {
             let file_name = (file?).file_name();
             println!("\t{file_name:?}");
         }
-
         Ok(())
     }
 
-    // TODO:
-    fn get_problem_from_path(&self, problem: &Path) -> anyhow::Result<Problem> {
+    // testcases -> self.box_dir.join("package").join("data").join("sample/secret")
+    // TODO: later change so the unzipped files are cached and not in sandbox
+    fn get_problem_from_path(&self, problem_data: &Bytes) -> anyhow::Result<Problem> {
         let package_dir = self.box_dir.join("package");
-        self.unzip_problem_package(problem, &package_dir)?;
+        self.unzip_problem_package(problem_data, &package_dir)?;
 
         let problem_dir = package_dir.join("problem");
         let metadata_path = problem_dir.join("problem.yaml");
@@ -322,26 +338,18 @@ impl IsolateBox {
         })
     }
 
-    pub fn run_submission(
+    fn compile_problem(
         &self,
         language: &LanguageConfig,
-        source: &str,
-        problem: &Path,
-    ) -> anyhow::Result<SubmissionResult> {
-        let source_name = format!("source.{}", language.file_extension);
-        let source_path = self.box_dir.join(&source_name);
-        fs::write(&source_path, source)?;
-
-        // TODO: test
-        let problem = self.get_problem_from_path(problem)?;
-        println!("extracted problem data: \n{problem:?}");
-
-        let output_name = "main";
+        source_name: &str,
+        output_name: &str,
+        limits: &problems::Limits,
+    ) -> anyhow::Result<bool> {
         let compile_limits = Limits {
-            time: Some(Duration::from_secs(10)),
-            wall_time: Some(Duration::from_secs(15)),
-            processes: ProcessLimit::Max(10),
-            memory_kib: Some(512 * 1024),
+            time: Some(Duration::try_from_secs_f32(limits.compilation_time)?),
+            wall_time: Some(Duration::from_secs(15)), // TODO: ?
+            processes: ProcessLimit::Max(10),         // TODO: ?
+            memory_kib: Some(u64::from(limits.compilation_memory) * 1024),
             ..Default::default()
         };
 
@@ -350,43 +358,141 @@ impl IsolateBox {
                 compile_command,
                 language,
                 &source_name,
+                None,
                 output_name,
                 true,
                 &compile_limits,
             )?;
 
             if !result.status.success() {
-                return SubmissionResult::from_metadata(
-                    0,
-                    Verdict::CompilationError,
-                    None,
-                    result.meta,
-                );
+                println!("compilation failed: {}", result.status);
+                return Ok(false);
             }
+        }
+        Ok(true)
+    }
+
+    // TODO: extract out some of the functionality
+    // TODO: ensure all the errors/verdicts are appropriate
+    // TODO: ensure all limits are properly enforced
+    pub fn run_submission(
+        &self,
+        language: &LanguageConfig,
+        source: &str,
+        problem_data: &Bytes,
+    ) -> anyhow::Result<SubmissionResult> {
+        let problem = self.get_problem_from_path(&problem_data)?;
+
+        let limits = &problem.metadata.limits;
+        println!("extracted problem data: \n{problem:?}");
+
+        if source.len() > limits.code as usize * 1024 {
+            anyhow::bail!(format!("exceeds code limit of {} KiB", limits.code)); // TODO: what should the user see?
+        }
+
+        let source_name = format!("source.{}", language.file_extension);
+        let source_path = self.box_dir.join(&source_name);
+        fs::write(&source_path, source)?;
+
+        let output_name = "main";
+        let compiled = self.compile_problem(language, &source_name, output_name, limits)?;
+        if !compiled {
+            return Ok(SubmissionResult {
+                verdict: Verdict::CompilationError,
+                ..Default::default()
+            });
         }
 
         let runtime_limits = Limits {
-            time: Some(Duration::from_secs(1)),
-            wall_time: Some(Duration::from_secs(3)),
-            processes: ProcessLimit::Max(10),
-            memory_kib: Some(256 * 1024),
+            // TODO: ?? validation limits
+            time: Some(Duration::try_from_secs_f32(limits.time_limit)?),
+            wall_time: Some(Duration::from_secs(3)), // TODO: ?
+            processes: ProcessLimit::Max(10),        // TODO: ?
+            memory_kib: Some(u64::from(limits.memory) * 1024),
             ..Default::default()
         };
 
-        let result = self.run(
-            &language.run,
-            language,
-            &source_name,
-            output_name,
-            false,
-            &runtime_limits,
-        )?;
+        let problems = problem
+            .sample_tests
+            .iter()
+            .chain(problem.secret_tests.iter());
+        let mut max_time: f64 = 0.0;
+        let mut max_mem: u64 = 0;
 
-        let metadata = &result.meta;
-        println!("metadata results from running submission:\n{metadata:?}");
+        for (i, testcase) in problems.enumerate() {
+            let result = self.run(
+                &language.run,
+                language,
+                &source_name,
+                Some(&testcase.input),
+                output_name,
+                false,
+                &runtime_limits,
+            )?;
 
-        // TODO: judge the problem instead of returning accepted every time.
-        SubmissionResult::from_metadata(0, Verdict::Accepted, None, result.meta)
+            let metadata = result.meta;
+            println!("metadata results from running submission:\n{metadata:?}");
+
+            if metadata.cg_oom_killed {
+                return Ok(SubmissionResult {
+                    verdict: Verdict::MemoryLimitExceeded,
+                    tests_passed: i as u64,
+                    time: max_time.max(metadata.time.unwrap_or(0.0)),
+                    memory: max_mem.max(metadata.cg_mem.unwrap_or(0)),
+                    message: None,
+                });
+            }
+
+            if let Some(time) = metadata.time {
+                max_time = max_time.max(time);
+            }
+
+            if let Some(mem) = metadata.cg_mem {
+                max_mem = max_mem.max(mem);
+            }
+
+            if !result.status.success() {
+                let verdict = match metadata.status {
+                    Some(MetadataStatus::RuntimeError) => Verdict::RuntimeError,
+                    Some(MetadataStatus::Signal) => Verdict::RuntimeError,
+                    Some(MetadataStatus::Timeout) => Verdict::TimeLimitExceeded,
+                    _ => anyhow::bail!("internal error occurred"),
+                };
+
+                return Ok(SubmissionResult {
+                    verdict,
+                    tests_passed: i as u64,
+                    time: max_time,
+                    memory: max_mem,
+                    message: None,
+                });
+            }
+
+            let result_meta = fs::metadata(&result.output_path)?;
+            if result_meta.len() > u64::from(limits.output) * 1024 * 1024 {
+                anyhow::bail!(format!("exceeds output limit of {} MiB", limits.output));
+            }
+
+            let correct = problems::diff_files(&result.output_path, &testcase.output)?;
+            if !correct {
+                return Ok(SubmissionResult {
+                    verdict: Verdict::WrongAnswer,
+                    tests_passed: i as u64,
+                    time: max_time,
+                    memory: max_mem,
+                    message: None,
+                });
+            }
+        }
+
+        let total = (problem.sample_tests.len() + problem.secret_tests.len()) as u64;
+        Ok(SubmissionResult {
+            verdict: Verdict::Accepted,
+            tests_passed: total,
+            time: max_time,
+            memory: max_mem,
+            message: None,
+        })
     }
 
     fn cleanup(&mut self) {
