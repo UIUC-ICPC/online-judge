@@ -1,7 +1,7 @@
 use judge_worker::handlers::{AppState, submission_handler};
 use std::env;
 
-use axum::{Router, routing::{post}};
+use axum::{Router, routing::post};
 use azure_core::http::Url;
 use azure_storage_blob::BlobContainerClient;
 use clap::Parser;
@@ -24,7 +24,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let configs = language_config::load_language_configs(&args.config)?;
     let azure_client = connect_to_azure()?;
 
-    let state = Arc::new(AppState {configs, azure_client});
+    let state = Arc::new(AppState {
+        configs,
+        azure_client,
+    });
     let app = Router::new()
         .route("/submissions", post(submission_handler))
         .with_state(state);
