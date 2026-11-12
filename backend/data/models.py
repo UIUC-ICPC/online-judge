@@ -7,8 +7,8 @@ from django.utils import timezone
 class JudgeWorker(models.Model):
     name = models.CharField(max_length=255, unique=True)
     endpoint_url = models.CharField(max_length=255)
-    weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC
-    active_connections = models.PositiveIntegerField(default=0)  # Active submissions being evaluated
+    weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC (Total cores)
+    active_connections = models.PositiveIntegerField(default=0)  # Active submissions being evaluated (Cores in use)
     is_active = models.BooleanField(default=True)
     last_heartbeat = models.DateTimeField(default=timezone.now)
 
