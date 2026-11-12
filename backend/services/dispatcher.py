@@ -17,4 +17,4 @@ def select_worker_WLC():
             lowest_ratio = current_ratio
             continue
 
-    return best_worker\
+    return best_worker
