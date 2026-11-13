@@ -1,56 +1,50 @@
-use judge_worker::isolate::IsolateBox;
-use judge_worker::language_config;
+use judge_worker::handlers::{AppState, submission_handler};
+use std::env;
 
-use axum::{
-    Json, Router,
-    extract::State,
-    http::StatusCode,
-    routing::{get, post},
-};
+use axum::{Router, routing::{post}};
+use azure_core::http::Url;
+use azure_storage_blob::BlobContainerClient;
 use clap::Parser;
+use judge_worker::language_config;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Parser)]
 struct Args {
     #[arg(short, long)]
     config: PathBuf,
-
-    #[arg(short, long)]
-    language: String,
 }
 
-#[derive(serde::Deserialize)]
-struct PayLoad {
-    language: String,
-    source: String,
-}
-
+// TODO: file caching based on last access
+// TODO: cpu pinning
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
     let args = Args::parse();
     let configs = language_config::load_language_configs(&args.config)?;
+    let azure_client = connect_to_azure()?;
 
+    let state = Arc::new(AppState {configs, azure_client});
     let app = Router::new()
-        .route("/", post(submission_handler))
-        .with_state(configs.clone());
+        .route("/submissions", post(submission_handler))
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("Starting server...");
     axum::serve(listener, app).await.unwrap();
     Ok(())
 }
 
-#[axum_macros::debug_handler]
-async fn submission_handler(
-    State(configs): State<language_config::LanguageConfigs>,
-    Json(payload): Json<PayLoad>,
-) -> Result<String, StatusCode> {
-    let language = configs
-        .get(&payload.language)
-        .ok_or_else(|| StatusCode::BAD_REQUEST)?;
+fn connect_to_azure() -> Result<BlobContainerClient, Box<dyn std::error::Error>> {
+    let account = env::var("AZURE_ACCOUNT")?;
+    let container = env::var("AZURE_CONTAINER")?;
+    let sas = env::var("AZURE_SAS")?;
 
-    let sandbox = IsolateBox::new(0, None).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // TODO: figure out better representation for problems
-    // sandbox.run_submission(language, &payload.source);
-    Ok(format!("Data would go here"))
+    let formmated = format!(
+        "https://{}.blob.core.windows.net/{}?{}",
+        account, container, sas
+    );
+    let service_url = Url::parse(&formmated)?;
+    let client = BlobContainerClient::new(service_url, None, None)?;
+    Ok(client)
 }
