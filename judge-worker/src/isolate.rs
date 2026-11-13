@@ -1,8 +1,12 @@
 use tempfile::{self, tempdir};
+use zip::ZipArchive;
 
-use crate::language_config::{Command, LanguageConfig};
+use crate::{
+    language_config::{Command, LanguageConfig},
+    problems::{Problem, testcases_from_dir},
+};
 use std::{
-    fs::{self, read_to_string},
+    fs::{self, File, read_to_string},
     path::{Path, PathBuf},
     process::{Command as ProcessCommand, ExitStatus},
     time::Duration,
@@ -255,10 +259,46 @@ impl IsolateBox {
         Ok(source_name.to_owned())
     }
 
+    fn unzip_problem_package(
+        &self,
+        problem: &Path,
+        destination: &Path,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let file = File::open(problem)?;
+        let mut zip = ZipArchive::new(file)?;
+        zip.extract_unwrapped_root_dir(&destination, zip::read::root_dir_common_filter)?;
+
+        let files = destination.read_dir()?;
+        println!("listing extracted files:");
+        for file in files {
+            let file_name = (file?).file_name();
+            println!("\t{file_name:?}");
+        }
+
+        Ok(())
+    }
+
+    fn get_problem_from_path(&self, problem: &Path) -> Result<Problem, Box<dyn std::error::Error>> {
+        let package_dir = self.box_dir.join("package");
+        self.unzip_problem_package(problem, &package_dir)?;
+
+        let problem_dir = package_dir.join("problem");
+        let metadata_path = problem_dir.join("problem.yaml");
+        let sample_dir = problem_dir.join("data").join("sample");
+        let secret_dir = problem_dir.join("data").join("secret");
+
+        Ok(Problem {
+            metadata: crate::problems::ProblemMetadata::from_yaml_file(metadata_path)?,
+            sample_tests: testcases_from_dir(&sample_dir, "sample")?,
+            secret_tests: testcases_from_dir(&secret_dir, "secret")?,
+        })
+    }
+
     pub fn run_submission(
         &self,
         language: &LanguageConfig,
         source: &Path,
+        problem: &Path,
     ) -> Result<Metadata, Box<dyn std::error::Error>> {
         let source_name = self.copy_to_sandbox(source)?;
         let output_name = "main";
@@ -284,6 +324,9 @@ impl IsolateBox {
                 return Err(format!("compilation failed: {}", result.status).into());
             }
         }
+
+        let problem = self.get_problem_from_path(problem)?;
+        println!("extracted problem data: \n{problem:?}");
 
         let runtime_limits = Limits {
             time: Some(Duration::from_secs(1)),

@@ -1,13 +1,16 @@
 start_all()
 
 
-def submission_command(language, source):
+def submission_command(
+    language, source, problem="/test/problem-packages/beautiful-sum.zip"
+):
     return (
         "sudo -u judge-worker -g judge-worker "
         "judge-worker "
         "-c /etc/judge-worker/language-configs.json "
         f"-l {language} "
-        f"-s {source}"
+        f"-s {source} "
+        f"-p {problem}"
     )
 
 

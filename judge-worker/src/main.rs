@@ -14,6 +14,9 @@ struct Args {
 
     #[arg(short, long)]
     source: PathBuf,
+
+    #[arg(short, long)]
+    problem: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or_else(|| format!("unknown language: {}", args.language))?;
 
     let sandbox = IsolateBox::new(0, None)?;
-    sandbox.run_submission(language, &args.source)?;
+    // TODO: figure out better representation for problems
+    sandbox.run_submission(language, &args.source, &args.problem)?;
     Ok(())
 }
