@@ -8,6 +8,7 @@
           "{source}"
         ];
       };
+      fileExtension = "py";
     };
   };
 }

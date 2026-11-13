@@ -33,6 +33,9 @@
               run = lib.mkOption {
                 type = command;
               };
+              fileExtension = lib.mkOption {
+                type = lib.types.str;
+              };
             };
           }
         );
