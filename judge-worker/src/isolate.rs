@@ -344,7 +344,7 @@ impl IsolateBox {
         source_name: &str,
         output_name: &str,
         limits: &problems::Limits,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<Option<SubmissionResult>> {
         let compile_limits = Limits {
             time: Some(Duration::try_from_secs_f32(limits.compilation_time)?),
             wall_time: Some(Duration::from_secs(15)), // TODO: ?
@@ -365,11 +365,16 @@ impl IsolateBox {
             )?;
 
             if !result.status.success() {
-                println!("compilation failed: {}", result.status);
-                return Ok(false);
+                let message = format!("compilation failed with exit code {}", result.status);
+                println!("{}", message);
+                return Ok(Some(SubmissionResult {
+                    verdict: Verdict::CompilationError,
+                    message: Some(message),
+                    ..Default::default()
+                }));
             }
         }
-        Ok(true)
+        Ok(None)
     }
 
     // TODO: extract out some of the functionality
@@ -395,13 +400,11 @@ impl IsolateBox {
         fs::write(&source_path, source)?;
 
         let output_name = "main";
-        let compiled = self.compile_problem(language, &source_name, output_name, limits)?;
-        if !compiled {
-            return Ok(SubmissionResult {
-                verdict: Verdict::CompilationError,
-                ..Default::default()
-            });
-        }
+        if let Some(compile_result) =
+            self.compile_problem(language, &source_name, output_name, limits)?
+        {
+            return Ok(compile_result);
+        };
 
         let runtime_limits = Limits {
             // TODO: ?? validation limits
