@@ -1,0 +1,47 @@
+{% extends "layouts/app.html" %}
+{% load static socialaccount %}
+
+{% block head_title %}Register{% endblock %}
+
+
+{% block content %}
+    <div class="panel login-page">
+        <p class="panel-title">Create your account</p>
+        <section class="panel form-panel">
+            <div>
+                <form method="post" action="{% provider_login_url 'google' process='login' next=redirect_field_value %}">
+                    {% csrf_token %}
+                    <button type="submit" class="auth-button">
+                        {% include "components/google_button.html" %}
+                    </button>
+                </form>
+            </div>
+
+            <div class="text-divider">or</div>
+
+            <form method="post" action="{% url 'account_signup' %}">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                {% for field in form %}
+                    <div class="form-field">
+                        <div class="field-heading">
+                            {{ field.label_tag }}
+                        </div>
+                        {{ field }}
+                        {{ field.errors }}
+                    </div>
+                {% endfor %}
+
+                {% if redirect_field_value %}
+                    <input type="hidden"
+                           name="{{ redirect_field_name }}"
+                           value="{{ redirect_field_value }}">
+                {% endif %}
+
+                <button type="submit" class="form-submit">Create account</button>
+            </form>
+            <p class="form-footer">Already have an account? <a href="{% url 'account_login' %}">Sign in</a></p>
+        </section>
+    </div>
+{% endblock %}

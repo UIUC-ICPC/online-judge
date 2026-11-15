@@ -2,18 +2,16 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
-# TODO sync these changes w any new changes 
 
 class JudgeWorker(models.Model):
     name = models.CharField(max_length=255, unique=True)
     endpoint_url = models.CharField(max_length=255)
-    weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC (Total cores)
-    active_connections = models.PositiveIntegerField(default=0)  # Active submissions being evaluated (Cores in use)
+    weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC
+    active_connections = models.PositiveIntegerField(
+        default=0
+    )  # Active submissions being evaluated
     is_active = models.BooleanField(default=True)
     last_heartbeat = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = "judge_workers"
 
     @property
     def load_ratio(self):
@@ -25,23 +23,36 @@ class JudgeWorker(models.Model):
     def __str__(self):
         return f"{self.name} (Active: {self.active_connections}, Weight: {self.weight})"
 
-class Contest(models.Model):
-	private = models.BooleanField(default=False)
-	password = models.CharField(
-		max_length=255,blank=True,
-	) 
-	title = models.CharField(max_length=255)
-	start_time = models.DateTimeField()
-	end_time = models.DateTimeField()
-    
-    
-class Problem(models.Model):
-	memory_limit = models.IntegerField()
-	time_limit = models.IntegerField()
-	output_limit = models.IntegerField()
-	name = models.CharField(max_length=255)
 
- 
+class Contest(models.Model):
+    title = models.CharField(max_length=255)
+    private = models.BooleanField(default=False)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="contest_end_after_start",
+            )
+        ]
+
+
+class Problem(models.Model):
+    class StatementType(models.TextChoices):
+        UNKNOWN = "unknown", "Unknown"
+        HTML = "html", "HTML"
+        PDF = "pdf", "PDF"
+        TEXT = "text", "Plain text"
+
+    blob_name = models.CharField(max_length=255, unique=True)
+    display_name = models.CharField(max_length=255)
+    statement_type = models.CharField(
+        max_length=255, choices=StatementType.choices, default=StatementType.UNKNOWN
+    )
+
+
 class ContestProblem(models.Model):
     contest = models.ForeignKey(
         Contest,
@@ -66,6 +77,7 @@ class ContestProblem(models.Model):
         ]
 
 
+# FIXME: right now, "empty" contest teams will continue to exist
 class ContestTeam(models.Model):
     name = models.CharField(max_length=255)
     contest = models.ForeignKey(
@@ -75,11 +87,31 @@ class ContestTeam(models.Model):
     )
 
 
-class ContestParticipant(models.Model):
-    class Role(models.TextChoices):
-        AUTHOR = "author", "Author"
-        COMPETITOR = "competitor", "Competitor"
+class ContestWriters(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="contest_writers",
+    )
+    contest = models.ForeignKey(
+        Contest,
+        on_delete=models.CASCADE,
+        related_name="writers",
+    )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "contest"], name="unique_contest_writer"
+            )
+        ]
+
+    def __str__(self):
+        return self.user.username
+
+
+# FIXME: ensure user may only join one team per contest
+class ContestParticipant(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -90,14 +122,8 @@ class ContestParticipant(models.Model):
         on_delete=models.CASCADE,
         related_name="participants",
     )
-    role = models.CharField(
-        max_length=255,
-        choices=Role.choices,
-    )
-
 
     class Meta:
-        db_table = "contest_participants"
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "team"],
@@ -106,8 +132,10 @@ class ContestParticipant(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} - {self.team.name} ({self.role})"
+        return f"{self.user} - {self.team.name}"
 
+
+# TODO: verdict and status should be textchoices
 class Submission(models.Model):
     team = models.ForeignKey(
         ContestTeam,
@@ -141,10 +169,9 @@ class Submission(models.Model):
         null=True,
         blank=True,
     )
-    source_code = models.TextField()
+    source_code = models.BinaryField()
 
     class Meta:
-        db_table = "submissions"
         indexes = [
             models.Index(
                 fields=["contest", "problem", "submitted_at"],
@@ -156,9 +183,9 @@ class Submission(models.Model):
             ),
         ]
 
-
     def __str__(self):
         return f"Submission #{self.pk}"
+
 
 class Judging(models.Model):
     submission = models.ForeignKey(
@@ -171,17 +198,13 @@ class Judging(models.Model):
         null=True,
         blank=True,
     )
-    worker = models.ForeignKey(
-        JudgeWorker,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="judgings",
-    )
-
-    class Meta:
-        db_table = "judgings"
-
+    # worker = models.ForeignKey(
+    #     JudgeWorker,
+    #     on_delete=models.SET_NULL,
+    #     null=True,
+    #     blank=True,
+    #     related_name="judgings",
+    # )
 
     def __str__(self):
         return f"Judging #{self.pk} for submission #{self.submission_id}"
@@ -194,8 +217,8 @@ class TestRun(models.Model):
         on_delete=models.CASCADE,
         related_name="test_runs",
     )
-    runtime_ms = models.IntegerField(null=True, blank=True)
-    memory_kb = models.IntegerField(null=True, blank=True)
+    runtime_ms = models.PositiveIntegerField(null=True, blank=True)
+    memory_kb = models.PositiveIntegerField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=255)
@@ -205,21 +228,23 @@ class TestRun(models.Model):
         blank=True,
     )
 
-
     class Meta:
-        db_table = "test_runs"
-        indexes = [
-            models.Index(
+        constraints = [
+            models.UniqueConstraint(
                 fields=["judging", "test_case_id"],
-                name="testrun_judging_case_idx",
+                name="unique_judging_test_case",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(finished_at__isnull=True)
+                    | (
+                        models.Q(started_at__isnull=False)
+                        & models.Q(finished_at__gte=models.F("started_at"))
+                    )
+                ),
+                name="valid_test_run_time",
             ),
         ]
 
-
     def __str__(self):
         return f"Test run #{self.pk}"
-
-
-    
-    
-

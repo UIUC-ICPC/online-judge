@@ -1,0 +1,11 @@
+{% extends "pages/contest/contest_page.html" %}
+{% load static %}
+
+{% block head_title %}{{ contest.title }} | Standings{% endblock %}
+
+{% block contest_body %}
+    {{ block.super }}
+    <section>
+        contest standings go here
+    </section>
+{% endblock %}

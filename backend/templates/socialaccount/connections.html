@@ -1,0 +1,32 @@
+{% extends "layouts/app.html" %}
+{% load socialaccount %}
+
+{% block head_title %}Connected accounts{% endblock %}
+
+{% block content %}
+    <div class="panel login-page">
+        <p class="panel-title">Connected accounts</p>
+        
+        <section class="panel form-panel">
+            {% get_social_accounts request.user as accounts %}
+
+            {% if accounts.google %}
+                {% for account in accounts.google %}
+                    <p>Connected to Google: {{ account.extra_data.email }}</p>
+                {% endfor %}
+            {% else %}
+                <p>You haven’t connected a Google account yet.</p>
+                <div class="text-divider">Connect an account</div>
+                <div>
+                    <form method="post" action="{% provider_login_url 'google' process='connect' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="auth-button">
+                            {% include "components/google_button.html" with label="Connect Google" %}
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+            <a href="{% url 'web:profile' %}">Back to profile</a>
+        </section>
+    </div>
+{% endblock %}

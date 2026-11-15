@@ -1,0 +1,33 @@
+.login-page {
+  width: 420px;
+  margin: 40px auto;
+}
+
+.form-panel form p {
+  margin-bottom: 16px;
+}
+
+.form-panel label:has(+ input[type="checkbox"]) {
+  display: inline;
+}
+
+.form-panel input[type="checkbox"] {
+  vertical-align: middle;
+}
+
+.form-panel .helptext {
+  display: none;
+}
+
+.auth-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.login-page > p {
+  text-align: center;
+}

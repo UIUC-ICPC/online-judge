@@ -1,0 +1,17 @@
+.problem-document {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 75vh;
+  min-height: 480px;
+  border: none;
+}
+
+.problem-additional {
+  padding: 12px 24px;
+  border-bottom: 1px solid #ddd;
+}
+
+.contest-problem-table th:first-child {
+  width: 48px;
+}

@@ -6,11 +6,13 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name="customuser", name="is_active",
+            model_name="customuser",
+            name="is_active",
             field=models.BooleanField(default=True),
         ),
         migrations.AddField(
-            model_name="customuser", name="is_staff",
+            model_name="customuser",
+            name="is_staff",
             field=models.BooleanField(default=False),
         ),
     ]

@@ -1,0 +1,24 @@
+{% if messages %}
+    <div class="toast-container">
+        {% for message in messages %}
+            <div class="toast {{ message.tags }}">
+                <p>{{ message }}</p>
+                <button 
+                    type="button"    
+                    class="toast-close"
+                    onclick="this.closest('.toast').remove()"
+                >
+                    &times;
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<script>
+    document.querySelectorAll(".toast").forEach((toast) => {
+        setTimeout(() => {
+            toast.remove();
+        }, 4000);
+    });
+</script>

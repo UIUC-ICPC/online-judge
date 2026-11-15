@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block head_title %}Contests{% endblock %}
+
+
+{% block content %}
+    <div>
+        <section class="panel">
+            <h2>Current or upcoming contests</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Writers</th>
+                        <th scope="col">Start</th>
+                        <th scope="col">Length</th>
+                        <th scope="col">Register</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contest in upcoming %}
+                        <tr>
+                            <td>{{ contest.title }}</td>
+                            <td>{{ contest.writers.all|join:", " }}</td>
+                            <td>{{ contest.start_time|date:"m/d/Y h:i a T" }}</td>
+                            <td>{{ contest.start_time|timesince:contest.end_time }}</td>
+                            <td>
+                                {% if contest.start_time > now and request.user.is_authenticated %}
+                                    <button
+                                        type="button"
+                                        class="button-link-style"
+                                        onclick="this.nextElementSibling.showModal()"
+                                    >
+                                        {% if contest.registered %}
+                                            View registration &gt;&gt;
+                                        {% else %}
+                                            Register &gt;&gt;
+                                        {% endif %}
+                                    </button>
+                                    <dialog aria-labelledby="registration-title-{{ contest.id }}">
+                                        {% include "components/contest_registration.html" with registered=contest.registered %}
+                                    </dialog>
+                                {% elif contest.start_time > now %}
+                                    <a href="{% url 'account_login' %}?next={% url 'web:contests' %}">Register &gt;&gt;</a>
+                                {% elif now < contest.end_time and contest.registered %}
+                                    <a href="{% url 'web:contest_detail' contest_id=contest.id %}">Enter &gt;&gt;</a>
+                                {% else %}
+                                    <p>Closed</p>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        <!-- TODO: add previous contests (what information do we want to display?) -->
+    </div>
+{% endblock %}

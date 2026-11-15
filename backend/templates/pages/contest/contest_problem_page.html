@@ -1,0 +1,51 @@
+{% extends "pages/contest/contest_page.html" %}
+{% load static %}
+
+{% block head_title %}{{ problem.problem.display_name }} | {{ contest.title }}{% endblock %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/problem.css' %}">
+{% endblock %}
+
+{% block contest_body %}
+    <section class="panel">
+        <h2>{{ problem.label }}. {{ problem.problem.display_name }}</h2>
+            <p class="problem-additional">
+                <a href="{{ statement_url }}" target="_blank" rel="noopener noreferrer">
+                    (Open problem in new tab)
+                </a>
+            </p>
+            <!-- TODO: make sure statement_type goes through some form of validation at some point -->
+            <iframe
+                class="problem-document"
+                src="{{ statement_url }}"
+                referrerpolicy="no-referrer"
+                {% if problem.problem.statement_type != "pdf" %}sandbox=""{% endif %}
+            ></iframe>
+    </section>
+
+    <div class="panel">
+        <p class="panel-title">>> Submit</p>
+        <form 
+            class="panel form-panel" 
+            method="post" 
+            enctype="multipart/form-data"
+            action="{% url 'web:contest_problem_submit' contest_id=contest.id problem_label=problem.label %}"
+        >
+            {% csrf_token %}
+            {{ submission_form.non_field_errors }}
+            <div class="form-field">
+                {{ submission_form.language.label_tag }}
+                {{ submission_form.language }}
+                {{ submission_form.language.errors }}
+            </div>
+            <div class="form-field">
+                {{ submission_form.source_file.label_tag }}
+                {{ submission_form.source_file }}
+                {{ submission_form.source_file.errors }}
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+{% endblock %}
