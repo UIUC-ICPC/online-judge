@@ -1,0 +1,32 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block head_title %}{{ contest.title }} | Contests{% endblock %}
+
+{% block content %}
+    <div>
+        <h1 class="page-title">{{ contest.title }}</h1>
+        <nav class="tabs">
+            {% with page=request.resolver_match.url_name %}
+                <a href="{% url 'web:contest_detail' contest_id=contest.id %}"
+                    {% if page == 'contest_detail' %} aria-current="page"{% endif %}
+                >
+                    Problems
+                </a>
+                <a href="{% url 'web:contest_my' contest_id=contest.id %}"
+                    {% if page == 'contest_my' %} aria-current="page"{% endif %}
+                >
+                    My Submissions
+                </a>
+                <a href="{% url 'web:contest_standings' contest_id=contest.id %}"
+                    {% if page == 'contest_standings' %} aria-current="page"{% endif %}
+                >
+                    Standings
+                </a>
+            {% endwith %}
+        </nav>
+        <div class="sidebar-layout">
+            {% block contest_body %}{% endblock %}
+        </div>
+    </div>
+{% endblock %}

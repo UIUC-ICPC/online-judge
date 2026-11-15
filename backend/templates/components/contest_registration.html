@@ -1,0 +1,24 @@
+<div class="panel login-page">
+    <h1 id="registration-title-{{ contest.id }}" class="panel-title">Register for {{ contest.title }}</h1>
+    <section class="panel form-panel">
+        <p>Starts: {{ contest.start_time|date:"m/d/Y h:i a T" }}</p>
+        <p>Length: {{ contest.start_time|timesince:contest.end_time }}</p>
+
+        {% if not registered %}
+            <p id="registration-description-{{ contest.id }}">Registering as {{ request.user.username }}.</p>
+            <form method="post" action="{% url 'web:contest_register' contest_id=contest.id %}">
+                {% csrf_token %}
+                <button type="submit" class="form-submit">Register for contest</button>
+            </form>
+        {% else %}
+            <p id="registration-description-{{ contest.id }}">You’re registered for this contest.</p>
+            <form method="post" action="{% url 'web:contest_unregister' contest_id=contest.id %}">
+                {% csrf_token %}
+                <button type="submit" class="form-submit">Cancel registration</button>
+            </form>
+        {% endif %}
+        <button type="button" class="form-submit" onclick="this.closest('dialog').close()">
+            Close
+        </button>
+    </section>
+</div>

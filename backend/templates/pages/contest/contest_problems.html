@@ -1,0 +1,34 @@
+{% extends "pages/contest/contest_page.html" %}
+{% load static %}
+
+{% block head_title %}{{ contest.title }} | Problems{% endblock %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/problem.css' %}">
+{% endblock %}
+
+{% block contest_body %}
+    {{ block.super }}
+    <section class="panel">
+        <h2>Problems</h2>
+        <table class="contest-problem-table">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in problems %}
+                <tr>
+                    <td>{{ entry.label }}</td>
+                    <td><a href="{% url 'web:contest_problem_page' contest_id=contest.id problem_label=entry.label %}">
+                        {{ entry.problem.display_name }}
+                    </a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

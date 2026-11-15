@@ -1,0 +1,32 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block head_title %}Complete signup{% endblock %}
+
+{% block content %}
+    <div class="panel login-page">
+        <p class="panel-title">Setup your account</p>
+        <section class="panel form-panel">
+            <p>Choose your account details to finish signing up.</p>
+
+            <form method="post" action="{% url 'socialaccount_signup' %}">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                {% for field in form %}
+                    <div class="form-field">
+                        <div class="field-heading">
+                            {{ field.label_tag }}
+                        </div>
+                        {{ field }}
+                        {{ field.errors }}
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="form-submit">
+                    Create account
+                </button>
+            </form>
+        </section>
+    </div>
+{% endblock %}

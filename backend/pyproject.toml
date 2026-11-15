@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.14"
 
 dependencies = [
+    "azure-storage-blob>=12.31.1",
+    "black>=26.10.1",
+    "daphne>=4.2.3",
     "django>=6.1.2",
     "django-allauth[socialaccount]>=65.19.7",
     "mysqlclient>=2.3.0",
