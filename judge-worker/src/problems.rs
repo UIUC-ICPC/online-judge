@@ -12,7 +12,7 @@ pub struct Testcase {
 pub fn testcases_from_dir(
     path: &Path,
     testcase_name: &str,
-) -> Result<Vec<Testcase>, Box<dyn std::error::Error>> {
+) -> anyhow::Result<Vec<Testcase>> {
     let entries = path.read_dir()?;
 
     let mut names = Vec::new();
@@ -44,11 +44,7 @@ pub fn testcases_from_dir(
         let input = path.join(format!("{name}.in"));
         let output = path.join(format!("{name}.ans"));
         if !output.is_file() {
-            return Err(format!(
-                "testcase '{name}' is missing answer file: {}",
-                output.display()
-            )
-            .into());
+            anyhow::bail!(format!("testcase '{name}' is missing answer file: {}", output.display()));
         }
         testcases.push(Testcase { input, output });
     }
@@ -120,7 +116,7 @@ pub struct ProblemMetadata {
 }
 
 impl ProblemMetadata {
-    pub fn from_yaml_file(path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_yaml_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let contents = read_to_string(path)?;
         Ok(yaml_serde::from_str(&contents)?)
     }
@@ -136,7 +132,7 @@ impl ProblemMetadata {
 
 /// checks the output file against the solution file.
 /// returns true if output file passes, false if it fails (WA)
-pub fn diff_files(output: &Path, solution: &Path) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn diff_files(output: &Path, solution: &Path) -> anyhow::Result<bool> {
     let output_contents = read_to_string(output)?;
     let solution_contents = read_to_string(solution)?;
     Ok(output_contents == solution_contents)
