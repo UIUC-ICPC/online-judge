@@ -78,7 +78,7 @@ pub struct Metadata {
     time_wall: Option<f64>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
 pub struct SubmissionResult {
     pub tests_passed: u64,
     pub verdict: Verdict,
@@ -108,7 +108,7 @@ impl SubmissionResult {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
 pub enum Verdict {
     #[default]
     Pending,

@@ -1,7 +1,7 @@
-use judge_worker::handlers::{AppState, submission_handler};
+use judge_worker::handlers::{AppState, submission_handler, health_handler};
 use std::env;
 
-use axum::{Router, routing::post};
+use axum::{Router, routing::{post, get}};
 use azure_core::http::Url;
 use azure_storage_blob::BlobContainerClient;
 use clap::Parser;
@@ -30,6 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let app = Router::new()
         .route("/submissions", post(submission_handler))
+        .route("/heartbeat", get(health_handler))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

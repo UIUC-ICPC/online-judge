@@ -20,7 +20,7 @@ class SubmissionForm(forms.Form):
         if source is None:
             return
 
-        limit = settings.SUBMISSION_MAX_SOURCE_BYTES
+        limit = settings.SUBMISSION_MAX_BYTES
         if source.size > limit:
             self.add_error("source_file", "File exceeds size limit.")
             return

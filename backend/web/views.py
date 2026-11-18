@@ -15,8 +15,10 @@ from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from .forms import SubmissionForm
 from .util import validate_contest_access
+from services.dispatcher import dispatch_task
 
 
+# TODO: error handling if db transaction fails
 @login_required
 @require_safe
 def profile(request):
@@ -29,15 +31,15 @@ def contests(request):
     contests = Contest.objects.prefetch_related("writers__user")
     upcoming = contests.filter(end_time__gte=now).order_by("start_time")
     past = contests.filter(end_time__lt=now).order_by("-end_time")
+    
     registered_contest_ids = set()
-
     if request.user.is_authenticated:
         registered_contest_ids = set(
             ContestParticipant.objects.filter(user=request.user).values_list(
                 "team__contest_id", flat=True
             )
         )
-
+        
     for contest in upcoming:
         contest.registered = contest.id in registered_contest_ids
 
@@ -50,32 +52,7 @@ def contests(request):
             "now": now,
         },
     )
-
-
-@login_required
-@require_POST
-@transaction.atomic
-def contest_register(request, contest_id, register):
-    # TODO: enable team functionality + better way to handle "default" teams
-    # TODO: fix the concurrent requests issue
-    contest = get_object_or_404(Contest.objects.select_for_update(), id=contest_id)
-    if contest.start_time <= timezone.now():
-        raise PermissionDenied("Contest registration is closed.")
-
-    registered = ContestParticipant.objects.filter(
-        user=request.user, team__contest=contest
-    )
-
-    if register and not registered.exists():
-        ContestParticipant.objects.create(
-            user=request.user,
-            team=ContestTeam.objects.create(name="default", contest=contest),
-        )
-    elif not register and registered.exists():
-        registered.delete()
-
-    return redirect("web:contests")
-
+    
 
 @login_required
 @require_safe
@@ -114,25 +91,50 @@ def contest_problem_page(request, contest_id, problem_label):
 @login_required
 @require_POST
 @transaction.atomic
+def contest_register(request, contest_id, register):
+    # TODO: enable team functionality + better way to handle "default" teams
+    # ensure one team / contest is enforced
+    contest = get_object_or_404(Contest.objects.select_for_update(), id=contest_id)
+    if contest.start_time <= timezone.now():
+        raise PermissionDenied("Contest registration is closed.")
+
+    registered = ContestParticipant.objects.filter(
+        user=request.user, team__contest=contest
+    )
+    if register and not registered.exists():
+        ContestParticipant.objects.create(
+            user=request.user,
+            team=ContestTeam.objects.create(name="default", contest=contest),
+        )
+    elif not register and registered.exists():
+        registered.delete()
+        
+    return redirect("web:contests")
+
+
+@login_required
+@require_POST
+@transaction.atomic
 def contest_problem_submit(request, contest_id, problem_label):
-    form = SubmissionForm(request.POST, request.FILES)
-    if not form.is_valid():
-        return _render_contest_problem(request, contest, problem, form)
-
+    # TODO: rate limit, prevent double click, etc
     contest = get_object_or_404(Contest, id=contest_id)
-    validate_contest_access(request.user, contest)
-
+    validate_contest_access(request.user, contest) 
+    
     problem = get_object_or_404(
         ContestProblem.objects.select_related("problem"),
         contest__id=contest_id,
         label=problem_label,
     )
+    
+    form = SubmissionForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return _render_contest_problem(request, contest, problem, form)
+
     team = get_object_or_404(
         ContestTeam,
         contest_id=contest_id,
         participants__user=request.user,
     )
-
     submission = Submission.objects.create(
         user=request.user,
         team=team,
@@ -140,12 +142,14 @@ def contest_problem_submit(request, contest_id, problem_label):
         problem=problem.problem,
         language=form.cleaned_data["language"],
         source_code=form.cleaned_data["source_code"],
-        submitted_at=timezone.now(),
-        status="Pending",
     )
-    Judging.objects.create(submission=submission)
-
-    # TODO: send to judge worker & return data using sse
+    Judging.objects.create(
+        submission=submission,
+        status=Judging.Status.QUEUED,
+        created_at=timezone.now(),
+    )
+    
+    transaction.on_commit(dispatch_task) 
     return redirect("web:contest_problem_page", contest_id, problem_label)
 
 

@@ -25,6 +25,8 @@ pub struct SubmissionPayLoad {
     problem_name: String,
 }
 
+// TODO: authenticate request
+// TODO: also early return + callback
 #[axum_macros::debug_handler]
 pub async fn submission_handler(
     State(state): State<Arc<AppState>>,
@@ -47,7 +49,13 @@ pub async fn submission_handler(
     Ok(Json(result))
 }
 
+pub async fn health_handler() -> Result<(), AppError> {
+    // TODO: return necessary metrics for heartbeat
+    Ok(())
+}
+
 // TODO: fix the error handling
+// TODO: be able to return specific error codes
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         (

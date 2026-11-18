@@ -6,22 +6,24 @@ from django.utils import timezone
 class JudgeWorker(models.Model):
     name = models.CharField(max_length=255, unique=True)
     endpoint_url = models.CharField(max_length=255)
-    weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC
-    active_connections = models.PositiveIntegerField(
-        default=0
-    )  # Active submissions being evaluated
+    # TODO: temporarily commented out for testing
+    # weight = models.PositiveIntegerField(default=1)  # Hardware weight capacity for WLC
+    # active_connections = models.PositiveIntegerField(
+    #     default=0
+    # )  # Active submissions being evaluated
     is_active = models.BooleanField(default=True)
-    last_heartbeat = models.DateTimeField(default=timezone.now)
+    last_heartbeat = models.DateTimeField(null=True, blank=True)
+    auth_key_hash = models.CharField(max_length=255, unique=True)
+    
+    # @property
+    # def load_ratio(self):
+    #     """Calculates dynamic load ratio C_i / W_i"""
+    #     if self.weight == 0:
+    #         return float("inf")
+    #     return self.active_connections / self.weight
 
-    @property
-    def load_ratio(self):
-        """Calculates dynamic load ratio C_i / W_i"""
-        if self.weight == 0:
-            return float("inf")
-        return self.active_connections / self.weight
-
-    def __str__(self):
-        return f"{self.name} (Active: {self.active_connections}, Weight: {self.weight})"
+    # def __str__(self):
+    #     return f"{self.name} (Active: {self.active_connections}, Weight: {self.weight})"
 
 
 class Contest(models.Model):
@@ -135,7 +137,6 @@ class ContestParticipant(models.Model):
         return f"{self.user} - {self.team.name}"
 
 
-# TODO: verdict and status should be textchoices
 class Submission(models.Model):
     team = models.ForeignKey(
         ContestTeam,
@@ -163,12 +164,6 @@ class Submission(models.Model):
     )
     language = models.CharField(max_length=255)
     submitted_at = models.DateTimeField(default=timezone.now)
-    status = models.CharField(max_length=255)
-    verdict = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-    )
     source_code = models.BinaryField()
 
     class Meta:
@@ -188,6 +183,13 @@ class Submission(models.Model):
 
 
 class Judging(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        DISPATCHING = "dispatching", "Dispatching" # or like its reserved..
+        RUNNING = "running", "Running"
+        FINISHED = "finished", "Finished"
+        FAILED = "failed", "Failed"
+        
     submission = models.ForeignKey(
         Submission,
         on_delete=models.CASCADE,
@@ -198,13 +200,28 @@ class Judging(models.Model):
         null=True,
         blank=True,
     )
-    # worker = models.ForeignKey(
-    #     JudgeWorker,
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     related_name="judgings",
-    # )
+    worker = models.ForeignKey(
+        JudgeWorker,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="judgings",
+    )
+    status = models.CharField(
+        max_length=255,
+        choices=Status.choices,
+        default=Status.QUEUED,
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    def set_if_dispatching(self, status):
+        updated = Judging.objects.filter(
+            pk=self.pk,
+            status=self.Status.DISPATCHING
+        ).update(status=status)
+        return bool(updated)
 
     def __str__(self):
         return f"Judging #{self.pk} for submission #{self.submission_id}"
