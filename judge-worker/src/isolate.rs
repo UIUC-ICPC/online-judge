@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{
     fs::{self, File, read_to_string},
+    panic::PanicHookInfo,
     path::{Path, PathBuf},
     process::{Command as ProcessCommand, ExitStatus},
     time::Duration,
@@ -72,6 +73,45 @@ pub struct Metadata {
     status: Option<MetadataStatus>,
     time: Option<f64>,
     time_wall: Option<f64>,
+}
+
+#[derive(Debug, Default)]
+pub struct SubmissionResult {
+    pub tests_passed: u64,
+    pub verdict: Verdict,
+    pub time: f64,
+    pub memory: u64,
+    pub message: Option<String>,
+}
+
+impl SubmissionResult {
+    pub fn from_metadata(
+        tests_passed: u64,
+        verdict: Verdict,
+        message: Option<String>,
+        metadata: Metadata,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(Self {
+            tests_passed,
+            verdict,
+            time: metadata.time_wall.ok_or("metadata is missing time_wall")?,
+            memory: metadata.cg_mem.ok_or("metadata is missing cg_mem")?,
+            message,
+        })
+    }
+}
+
+#[derive(Debug, Default)]
+pub enum Verdict {
+    #[default]
+    Pending,
+    Accepted,
+    WrongAnswer,
+    TimeLimitExceeded,
+    MemoryLimitExceeded,
+    RuntimeError,
+    CompilationError,
+    // IdlenessLimitExceeded,
 }
 
 fn read_metadata(path: &Path) -> Result<Metadata, Box<dyn std::error::Error>> {
@@ -299,7 +339,7 @@ impl IsolateBox {
         language: &LanguageConfig,
         source: &Path,
         problem: &Path,
-    ) -> Result<Metadata, Box<dyn std::error::Error>> {
+    ) -> Result<SubmissionResult, Box<dyn std::error::Error>> {
         let source_name = self.copy_to_sandbox(source)?;
         let output_name = "main";
         let compile_limits = Limits {
@@ -321,7 +361,12 @@ impl IsolateBox {
             )?;
 
             if !result.status.success() {
-                return Err(format!("compilation failed: {}", result.status).into());
+                return SubmissionResult::from_metadata(
+                    0,
+                    Verdict::CompilationError,
+                    None,
+                    result.meta,
+                );
             }
         }
 
@@ -345,16 +390,11 @@ impl IsolateBox {
             &runtime_limits,
         )?;
 
-        // TODO: rewrite nix vm tests to check returned metadata struct
-        // instead of checking if judge-worker exited successfully
-        if !result.status.success() {
-            return Err(format!("execution failed: {}", result.status).into());
-        }
-
-        let metadata = result.meta;
+        let metadata = &result.meta;
         println!("metadata results from running submission:\n{metadata:?}");
 
-        Ok(metadata)
+        // TODO: judge the problem instead of returning accepted every time.
+        SubmissionResult::from_metadata(0, Verdict::Accepted, None, result.meta)
     }
 
     fn cleanup(&mut self) {
