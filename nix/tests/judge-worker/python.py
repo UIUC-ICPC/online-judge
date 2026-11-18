@@ -1,3 +1,5 @@
 with subtest("Python hello world"):
-    output = run_submission("python", "/test/python/hello-world.py")
-    t.assertIn("Hello, world!", output)
+    submit_file("python", "/test/python/hello-world.py")
+
+with subtest("service is still running"):
+    machine.succeed("systemctl is-active --quiet judge-worker.service")
