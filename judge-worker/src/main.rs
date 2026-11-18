@@ -1,12 +1,7 @@
 use judge_worker::isolate::IsolateBox;
 use judge_worker::language_config;
 
-use axum::{
-    Json, Router,
-    extract::State,
-    http::StatusCode,
-    routing::{get, post},
-};
+use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -14,9 +9,6 @@ use std::path::PathBuf;
 struct Args {
     #[arg(short, long)]
     config: PathBuf,
-
-    #[arg(short, long)]
-    language: String,
 }
 
 #[derive(serde::Deserialize)]
