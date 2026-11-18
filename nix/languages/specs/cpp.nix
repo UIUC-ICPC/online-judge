@@ -28,6 +28,7 @@
             }
           ];
           run.program = "{output}";
+          fileExtension = "cpp";
         };
 
       mkClang =
@@ -46,6 +47,7 @@
             }
           ];
           run.program = "{output}";
+          fileExtension = "cpp";
         };
     in
     {

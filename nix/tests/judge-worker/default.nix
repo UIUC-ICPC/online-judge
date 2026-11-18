@@ -7,19 +7,27 @@
 {
   name = "judge-worker";
 
-  nodes.machine = {
-    imports = [
-      judgeWorkerModule
-    ];
+  nodes.machine =
+    { pkgs, ... }:
+    {
+      imports = [
+        judgeWorkerModule
+      ];
 
-    environment.etc = {
-      "judge-worker/language-configs.json".source = languageConfigs;
+      services.judge-worker = {
+        enable = true;
+        configFile = languageConfigs;
+      };
+
+      # Used by the test script to submit files to the server.
+      environment.systemPackages = [
+        pkgs.curl
+      ];
+
+      systemd.tmpfiles.rules = [
+        "L+ /test - - - - ${../../../judge-worker/tests/fixtures}"
+      ];
     };
-
-    systemd.tmpfiles.rules = [
-      "L+ /test - - - - ${../../../judge-worker/tests/fixtures}"
-    ];
-  };
 
   testScript = lib.concatLines (
     map builtins.readFile [
